@@ -7,39 +7,46 @@ mass_lander = 1.0         # Mass of the lander (kg)
 mass_planet = 6.42e23     # Mass of Mars (kg)
 
 # Initial conditions (3D)
-position = np.array([0, 10e6, 0])  # Start 3400 km from planet center
+position = np.array([0, 10e6, 0])  # Start 10,000 km from planet center
 velocity = np.array([0, 0, 0])   # Initial tangential velocity (m/s)
 
 # Time setup
 t_max = 1000  # Total simulation time (s)
 dt = 1        # Timestep (s)
 
-# Gravitational force function
 def gravity_force(mass_planet, mass_lander, position):
+    # Universal gravitational constant
+    G = 6.67430e-11  
     r = np.linalg.norm(position)
     if r == 0:
-        return np.zeros(3)  # Avoid division by zero
-    force_mag = -G * mass_planet * mass_lander / r**2
-    return force_mag * position / r
+        return np.zeros(3)  # avoid division by zero
+    # Force vector on lander
+    return -G * mass_planet * mass_lander * position / r**3
 
-# Euler method for comparison (optional)
 def euler_gravity(position, velocity, mass_lander, mass_planet, dt, t_max):
-    t_array = np.arange(0, t_max, dt)
-    pos_list = []
-    vel_list = []
+    t_array = np.arange(0, t_max + dt, dt)
+    n = len(t_array)
 
-    position = position.copy()
-    velocity = velocity.copy()
+    vel = np.zeros((n, 3))
+    pos = np.zeros((n, 3))
 
-    for _ in t_array:
-        pos_list.append(position.copy())
-        vel_list.append(velocity.copy())
+    # Copy to avoid mutating input arrays
+    x = position.astype(float).copy()
+    v = velocity.astype(float).copy()
 
-        a = gravity_force(mass_planet, mass_lander, position) / mass_lander
-        position += dt * velocity
-        velocity += dt * a
+    for i in range(n):
+        pos[i] = x
+        vel[i] = v
 
-    return np.array(pos_list), np.array(vel_list)
+        # Acceleration = F/m
+        a = gravity_force(mass_planet, mass_lander, x) / mass_lander
+
+        # Forward Euler update
+        x = x + dt * v
+        v = v + dt * a
+
+    return t_array, pos, vel
+
 
 # Verlet method
 def verlet_gravity(position, velocity, mass_lander, mass_planet, dt, t_max):
@@ -70,18 +77,4 @@ def verlet_gravity(position, velocity, mass_lander, mass_planet, dt, t_max):
 
     return t_array, x_array, v_array
 
-# Run simulation
-t_array, x_array, v_array = verlet_gravity(position, velocity, mass_lander, mass_planet, dt, t_max)
 
-mars_radius = 3.39e6  # m
-altitude = np.linalg.norm(x_array, axis=1) - mars_radius
-
-plt.figure(figsize=(10, 5))
-plt.title("Altitude vs Time (Scenario 1: Free Fall)")
-plt.plot(t_array, altitude, label='Altitude (m)', color='blue')
-plt.xlabel("Time (s)")
-plt.ylabel("Altitude above Mars (m)")
-plt.grid()
-plt.legend()
-plt.tight_layout()
-plt.show()
